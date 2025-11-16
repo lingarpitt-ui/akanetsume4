@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "akanetsume4",
+    "testing": "bkanetsume4"
+  },
+  "targets": {},
+  "etags": {}
+}

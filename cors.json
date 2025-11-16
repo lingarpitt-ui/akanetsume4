@@ -1,0 +1,22 @@
+[
+  {
+    "origin": [
+      "https://netsumev4.web.app",
+      "http://localhost:3000",
+      "http://192.168.2.15:3000",
+      "https://bkanetsume4.web.app" 
+    ],
+    "method": [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "responseHeader": [
+      "Content-Type",
+      "Access-Control-Allow-Origin"
+    ],
+    "maxAgeSeconds": 3600
+  }
+]

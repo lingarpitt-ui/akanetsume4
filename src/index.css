@@ -1,0 +1,32 @@
+/* --- A simple, modern CSS Reset --- */
+
+/* 1. Makes sizing more intuitive */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* 2. Removes default margins */
+body, h1, h2, h3, h4, p, figure, blockquote, dl, dd {
+  margin: 0;
+}
+
+/* 3. Sets a clean base font for the whole app */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
+    Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  line-height: 1.5;
+  min-height: 100vh;
+  text-rendering: optimizeSpeed;
+  background-color: #f8f9fa; /* A very light gray background */
+}
+
+/* 4. Makes images easier to work with */
+img, picture {
+  max-width: 100%;
+  display: block;
+}
+
+/* 5. Makes form elements inherit fonts */
+input, button, textarea, select {
+  font: inherit;
+}
