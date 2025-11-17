@@ -14,14 +14,18 @@ import 'firebase/compat/functions';
 
 // --- YOUR CONFIG ---
 const firebaseConfig = {
-    apiKey: "AIzaSyDMd9-Q5t4vjcU2UGpqLbD7MOtXY7fRWwM",
-    authDomain: "bkanetsume4.firebaseapp.com",
-    projectId: "bkanetsume4",
-    storageBucket: "bkanetsume4.firebasestorage.app",
-    messagingSenderId: "80370007495",
-    appId: "1:80370007495:web:18d01fecfe76206632ede2",
-    measurementId: "G-S94260E2BC"
+  apiKey: "AIzaSyDwibAnmJHpOm6iqohZ1c-iYMFXPSaVvpc",
+  authDomain: "akanetsume-dev.firebaseapp.com",
+  projectId: "akanetsume-dev",
+  storageBucket: "akanetsume-dev.firebasestorage.app",
+  messagingSenderId: "1098656327994",
+  appId: "1:1098656327994:web:b25fea70e147cf0beb8803",
+  measurementId: "G-V7CHLTSX6M"
 };
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
 
 // --- ADMIN Configuration ---
 const ADMIN_UIDS = ["UOisb5Gh7FRVf0LmGantbQS2Lo33"];
