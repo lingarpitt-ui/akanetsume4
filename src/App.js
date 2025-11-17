@@ -23,9 +23,6 @@ const firebaseConfig = {
   measurementId: "G-V7CHLTSX6M"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
 
 // --- ADMIN Configuration ---
 const ADMIN_UIDS = ["UOisb5Gh7FRVf0LmGantbQS2Lo33"];
@@ -41,7 +38,7 @@ const db = firebase.firestore(); // <-- This fixes the connection
 const functions = firebase.functions(); // Added this back
 
 // We use a simple, clean path.
-const appId = "bkanetsume4"; 
+const appId = "akanetsume-dev"; 
 // --- END OF FIX ---
 
 

@@ -7,45 +7,33 @@ const fetch = require("node-fetch"); // <-- Make sure this is node-fetch@2
 // for the (default) database, which is what your App.js uses.
 initializeApp();
 
-// A helper function to call the Vertex AI API
-const callGemini = async (prompt, fileData = null, mimeType = null) => {
+// Update arguments to accept safetySettings
+const callGemini = async (prompt, fileData = null, mimeType = null, safetySettings = []) => {
     
     const auth = new GoogleAuth({
         scopes: 'https://www.googleapis.com/auth/cloud-platform'
     });
 
-    const PROJECT_ID = "bkanetsume4"; // Your project
+    const PROJECT_ID = "akanetsume-dev"; 
     const LOCATION = "us-central1"; 
-    
-    // --- THIS IS THE FIX ---
-// Use the modern, correct model names
-
-// --- THIS IS THE FIX ---
-// Use the modern 'gemini-2.5-flash' model, which is available in us-central1
-// and can handle both text and files (vision).
-const model = "gemini-2.5-flash"; 
-
-// The API_URL needs to point to the 'google' publisher
-const API_URL = `https://us-central1-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/${model}:generateContent`;
+    const model = "gemini-2.5-flash"; 
+    const API_URL = `https://us-central1-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/${model}:generateContent`;
 
     const parts = [{ text: prompt }];
     if (fileData && mimeType) {
-        parts.push({
-            inlineData: {
-                data: fileData,
-                mimeType: mimeType
-            }
-        });
+        parts.push({ inlineData: { data: fileData, mimeType: mimeType } });
     }
-    const payload = { 
-        contents: [{ role: "user", parts: parts }], // 'role: "user"' is now added
-        generationConfig: {
 
+    const payload = { 
+        contents: [{ role: "user", parts: parts }],
+        generationConfig: {
             "maxOutputTokens": 2048,
             "temperature": 0.4,
             "topP": 1,
             "topK": 32
-        }
+        },
+        // --- ADD THIS LINE ---
+        safetySettings: safetySettings 
     };
 
     const client = await auth.getClient();
@@ -157,7 +145,6 @@ exports.extractResumeData = onCall({ region: "us-central1" }, async (request) =>
         throw new HttpsError('invalid-argument', 'The function must be called with "fileData" and "mimeType".');
     }
     
-    // --- THIS IS THE CORRECT, FULL PROMPT ---
     const prompt = `
         Analyze the provided resume document and extract the employment history. 
         Return the data as a valid JSON array of objects. Each object should represent one job and
@@ -166,30 +153,47 @@ exports.extractResumeData = onCall({ region: "us-central1" }, async (request) =>
         - Summarize responsibilities into "description".
         
         IMPORTANT: Your response MUST be only the raw JSON array.
-        Do NOT include any introductory text, markdown (like \`\`\`json\`), or explanations.
+        Do NOT include any introductory text, markdown, or explanations.
         Your response must start with '[' and end with ']'.
     `;
-    // --- END OF FIX ---
+    
+    // --- DEFINE SAFETY SETTINGS (Allow PII) ---
+    const safetySettings = [
+        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+    ];
 
     try {
-        const result = await callGemini(prompt, fileData, mimeType);
+        // Pass safetySettings to the helper function
+        // (We need to update callGemini to use these, see below)
+        const result = await callGemini(prompt, fileData, mimeType, safetySettings);
         
-        let rawText = result.candidates[0].content.parts[0].text;
-        
-        // Clean up any markdown, just in case
+        // --- DEBUG LOGGING ---
+        // This will print the exact text from the AI to your Firebase console logs
+        const rawText = result.candidates[0].content.parts[0].text;
+        console.log("AI Raw Response:", rawText); 
+
+        // Check for safety finish reason
+        if (result.candidates[0].finishReason !== "STOP") {
+             console.warn("AI finished with reason:", result.candidates[0].finishReason);
+        }
+
+        // Clean up markdown
         let cleanText = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
 
-        // Find the first '[' and the last ']'
+        // Robust JSON Extraction
         const jsonStartIndex = cleanText.indexOf('[');
         const jsonEndIndex = cleanText.lastIndexOf(']');
         
         if (jsonStartIndex === -1 || jsonEndIndex === -1) {
-            console.error("AI Response was not valid JSON:", cleanText);
-            throw new Error("Could not find valid JSON array in AI response.");
+            // Log the failure so you can see it
+            console.error("Failed to find JSON in text:", cleanText);
+            throw new Error("The AI response did not contain a valid JSON array. Check logs for details.");
         }
 
         const jsonString = cleanText.substring(jsonStartIndex, jsonEndIndex + 1);
-        
         return jsonString;
 
     } catch (error) {

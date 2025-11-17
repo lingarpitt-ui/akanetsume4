@@ -2,7 +2,9 @@
   "projects": {
     "default": "akanetsume4",
     "testing": "bkanetsume4",
-    "Develop": "akanetsume-dev"
+    "Develop": "akanetsume-dev",
+    "development": "akanetsume-dev",
+    "Development": "akanetsume-dev"
   },
   "targets": {},
   "etags": {}
