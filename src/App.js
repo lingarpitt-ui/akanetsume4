@@ -38,7 +38,7 @@ const db = firebase.firestore(); // <-- This fixes the connection
 const functions = firebase.functions(); // Added this back
 
 // We use a simple, clean path.
-const appId = "bkanetsume"; 
+const appId = "bkanetsume4"; 
 // --- END OF FIX ---
 
 
