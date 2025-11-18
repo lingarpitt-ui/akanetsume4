@@ -14,7 +14,7 @@ const callGemini = async (prompt, fileData = null, mimeType = null, safetySettin
         scopes: 'https://www.googleapis.com/auth/cloud-platform'
     });
 
-    const PROJECT_ID = "akanetsume-dev"; 
+    const PROJECT_ID = "bkanetsume4"; 
     const LOCATION = "us-central1"; 
     const model = "gemini-2.5-flash"; 
     const API_URL = `https://us-central1-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/${model}:generateContent`;
