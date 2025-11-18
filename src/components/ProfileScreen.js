@@ -87,8 +87,8 @@ export default function ProfileScreen({ user, setUser, setView, db, appId }) {
         reader.onloadend = async () => {
             const base64String = reader.result.split(',')[1];
             try {
-                const extractResumeData = firebase.functions().httpsCallable('extractResumeData');
-                const result = await extractResumeData({ fileData: base64String, mimeType: resumeFile.type });
+                const extractResumeDataV2 = firebase.functions().httpsCallable('extractResumeDataV2');
+                const result = await extractResumeDataV2({ fileData: base64String, mimeType: resumeFile.type });
                 
                 const text = result.data;
                 const jsonString = text.replace(/```json/g, "").replace(/```/g, "").trim();
@@ -124,13 +124,24 @@ export default function ProfileScreen({ user, setUser, setView, db, appId }) {
         reader.readAsDataURL(resumeFile);
         reader.onloadend = async () => {
             const base64String = reader.result.split(',')[1];
+//            
             try {
-                const extractEducationFn = firebase.functions().httpsCallable('extractEducationData');
+                const extractEducationFn = firebase.functions().httpsCallable('extractEducationDataV2');
                 const result = await extractEducationFn({ fileData: base64String, mimeType: resumeFile.type });
                 
+                // --- FIX: Add robust check for result data ---
+                if (!result.data) {
+                    throw new Error("Server returned an empty response. Check backend logs.");
+                }
+
                 const jsonString = result.data;
                 const extractedEducation = JSON.parse(jsonString);
 
+                // --- FIX: Add check to ensure JSON is an array before mapping ---
+                if (!Array.isArray(extractedEducation)) {
+                    throw new Error("AI returned data in an unexpected format. Expecting an array.");
+                }
+                
                 const newAccreditations = extractedEducation.map((item, index) => ({
                     ...item,
                     id: `new-edu-${Date.now()}-${index}`, // Temporary ID
@@ -140,6 +151,8 @@ export default function ProfileScreen({ user, setUser, setView, db, appId }) {
                 setAccreditations(prev => [...prev, ...newAccreditations]);
                 setModalMessage(`Successfully extracted ${newAccreditations.length} education/certification items.`);
             } catch (error) {
+// ... rest of the function remains the same
+
                 console.error("Error extracting education:", error);
                 setModalMessage(`Failed to extract education: ${error.message}`);
             } finally {
