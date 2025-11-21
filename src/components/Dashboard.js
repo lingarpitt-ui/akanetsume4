@@ -55,7 +55,7 @@ export default function Dashboard({ user, setView, setProfileForReport, db, appI
 
         try {
             // Define and call the Cloud Function
-            const generateSkills = firebase.functions().httpsCallable('generateSkills');
+            const generateSkills = firebase.functions().httpsCallable('generateSkillsV2');
             const result = await generateSkills({ jobTitle: newProfileTitle });
             const text = result.data;
 
