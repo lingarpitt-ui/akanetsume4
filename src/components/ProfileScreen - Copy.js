@@ -73,7 +73,11 @@ export default function ProfileScreen({ user, setUser, setView, db, appId }) {
         }
     };
 
+<<<<<<< HEAD
+    // --- HANDLER: Extract Jobs ---
+=======
     // --- HANDLER: Extract Jobs (Uses V2 Function) ---
+>>>>>>> dev
     const handleExtractFromResume = async () => {
         if (!resumeFile) { setModalMessage("Please select a resume file first."); return; }
         setIsExtracting(true);
@@ -83,19 +87,25 @@ export default function ProfileScreen({ user, setUser, setView, db, appId }) {
         reader.onloadend = async () => {
             const base64String = reader.result.split(',')[1];
             try {
+<<<<<<< HEAD
+                const extractResumeDataV2 = firebase.functions().httpsCallable('extractResumeDataV2');
+                const result = await extractResumeDataV2({ fileData: base64String, mimeType: resumeFile.type });
+                
+                const text = result.data;
+                const jsonString = text.replace(/```json/g, "").replace(/```/g, "").trim();
+=======
                 const extractResumeData = firebase.functions().httpsCallable('extractResumeDataV2');
                 const result = await extractResumeData({ fileData: base64String, mimeType: resumeFile.type });
                 
-                if (!result.data) { throw new Error("Server returned an empty response. Check backend logs."); }
-                
                 const jsonString = result.data.replace(/```json/g, "").replace(/```/g, "").trim();
+>>>>>>> dev
                 const extractedJobs = JSON.parse(jsonString);
 
                 if (!Array.isArray(extractedJobs)) { throw new Error("AI returned job data in an invalid format. Expecting an array."); }
 
                 const newHistory = extractedJobs.map((job, index) => ({
                     ...job,
-                    id: `new-${Date.now()}-${index}`,
+                    id: `new-${Date.now()}-${index}`, 
                     order: employmentHistory.length + index
                 }));
 
@@ -121,8 +131,6 @@ export default function ProfileScreen({ user, setUser, setView, db, appId }) {
                 const extractEducationFn = firebase.functions().httpsCallable('extractEducationDataV2'); 
                 const result = await extractEducationFn({ fileData: base64String, mimeType: resumeFile.type });
                 
-                if (!result.data) { throw new Error("Server returned an empty response. Check backend logs."); }
-
                 const jsonString = result.data.replace(/```json/g, "").replace(/```/g, "").trim();
                 const extractedEducation = JSON.parse(jsonString);
 
@@ -143,6 +151,56 @@ export default function ProfileScreen({ user, setUser, setView, db, appId }) {
         };
     };
 
+    // --- HANDLER: Extract Education ---
+    const handleExtractEducation = async () => {
+        if (!resumeFile) {
+            setModalMessage("Please select a resume file first.");
+            return;
+        }
+
+        setIsExtracting(true);
+
+        const reader = new FileReader();
+        reader.readAsDataURL(resumeFile);
+        reader.onloadend = async () => {
+            const base64String = reader.result.split(',')[1];
+//            
+            try {
+                const extractEducationFn = firebase.functions().httpsCallable('extractEducationDataV2');
+                const result = await extractEducationFn({ fileData: base64String, mimeType: resumeFile.type });
+                
+                // --- FIX: Add robust check for result data ---
+                if (!result.data) {
+                    throw new Error("Server returned an empty response. Check backend logs.");
+                }
+
+                const jsonString = result.data;
+                const extractedEducation = JSON.parse(jsonString);
+
+                // --- FIX: Add check to ensure JSON is an array before mapping ---
+                if (!Array.isArray(extractedEducation)) {
+                    throw new Error("AI returned data in an unexpected format. Expecting an array.");
+                }
+                
+                const newAccreditations = extractedEducation.map((item, index) => ({
+                    ...item,
+                    id: `new-edu-${Date.now()}-${index}`, // Temporary ID
+                    order: accreditations.length + index
+                }));
+
+                setAccreditations(prev => [...prev, ...newAccreditations]);
+                setModalMessage(`Successfully extracted ${newAccreditations.length} education/certification items.`);
+            } catch (error) {
+// ... rest of the function remains the same
+
+                console.error("Error extracting education:", error);
+                setModalMessage(`Failed to extract education: ${error.message}`);
+            } finally {
+                setIsExtracting(false);
+            }
+        };
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         
@@ -153,24 +211,74 @@ export default function ProfileScreen({ user, setUser, setView, db, appId }) {
             const uploadTask = storageRef.put(resumeFile);
 
             uploadTask.on('state_changed', 
+<<<<<<< HEAD
+                (snapshot) => {
+                    const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+                    setUploadProgress(progress);
+                }, 
+                (error) => {
+                    console.error("Upload failed:", error);
+                    setModalMessage(`Resume upload failed: ${error.message}`);
+                }, 
+                async () => {
+                    const downloadURL = await storageRef.getDownloadURL();
+                    finalProfileData.resumeUrl = downloadURL;
+                    await saveProfile(finalProfileData);
+                }
+=======
                 (snapshot) => { setUploadProgress(Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100)); }, 
                 (error) => { console.error("Upload failed:", error); setModalMessage(`Resume upload failed: ${error.message}`); }, 
                 async () => { const downloadURL = await storageRef.getDownloadURL(); finalProfileData.resumeUrl = downloadURL; await saveProfile(finalProfileData); }
+>>>>>>> dev
             );
         } else { await saveProfile(finalProfileData); }
     };
 
+    // --- ROBUST SAVE FUNCTION ---
     const saveProfile = async (dataToSave) => {
+        console.log("Attempting to save profile...");
+        
         try {
             await db.collection('artifacts').doc(appId).collection('users').doc(user.uid).set(dataToSave, { merge: true });
+<<<<<<< HEAD
+
+=======
+>>>>>>> dev
             const batch = db.batch();
             
             // Save Jobs
             const historyCollection = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('employmentHistory');
             employmentHistory.forEach(job => {
+<<<<<<< HEAD
+                if (job.id && (job.id.toString().startsWith('new-') || job.id.toString().startsWith('temp-'))) {
+                    const { id, ...jobData } = job;
+                    const newDocRef = historyCollection.doc();
+                    batch.set(newDocRef, jobData);
+                } else if (job.id) {
+                    const { id, ...jobData } = job;
+                    batch.set(historyCollection.doc(id), jobData, { merge: true });
+                }
+            });
+
+            // Save Accreditations
+            const accCollection = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('accreditations');
+            accreditations.forEach(acc => {
+                if (acc.id && (acc.id.toString().startsWith('new-') || acc.id.toString().startsWith('new-edu-'))) {
+                    const { id, ...accData } = acc;
+                    const newDocRef = accCollection.doc();
+                    batch.set(newDocRef, accData);
+                } else if (acc.id) {
+                    const { id, ...accData } = acc;
+                    batch.set(accCollection.doc(id), accData, { merge: true });
+                }
+            });
+
+            await batch.commit();
+=======
                 if (job.id && (job.id.toString().startsWith('new-') || job.id.toString().startsWith('temp-'))) { const { id, ...jobData } = job; batch.set(historyCollection.doc(), jobData); }
                 else if (job.id) { const { id, ...jobData } = job; batch.set(historyCollection.doc(id), jobData, { merge: true }); }
             });
+>>>>>>> dev
 
             // Save Accreditations
             const accCollection = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('accreditations');
@@ -182,8 +290,20 @@ export default function ProfileScreen({ user, setUser, setView, db, appId }) {
             await batch.commit();
             setUser(prev => ({ ...prev, ...dataToSave }));
             setModalMessage('Profile details saved successfully!');
+<<<<<<< HEAD
+            
+            setTimeout(() => {
+                setView('dashboard'); 
+            }, 1500);
+            
+        } catch (err) {
+            console.error("Save Error:", err);
+            setModalMessage(`Failed to save: ${err.message}`);
+        }
+=======
             setTimeout(() => { setView('dashboard'); }, 1500);
         } catch (err) { console.error("Save Error:", err); setModalMessage(`Failed to save: ${err.message}`); }
+>>>>>>> dev
     };
 
     const handleJobChange = (e) => { const { name, value } = e.target; setCurrentJob(prev => ({ ...prev, [name]: value })); };
@@ -210,6 +330,15 @@ export default function ProfileScreen({ user, setUser, setView, db, appId }) {
             <button onClick={() => setView('dashboard')} className="mb-6 bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">&larr; Back to Dashboard</button>
             <h2 className="text-3xl font-bold mb-6">Your Profile</h2>
             
+<<<<<<< HEAD
+            <form className="grid grid-cols-1 md:grid-cols-2 gap-6 border-b pb-6 mb-6">
+                <div><label className="block text-gray-700 mb-2">Full Name</label><input type="text" name="name" value={profile.name || ''} onChange={handleChange} className="w-full px-4 py-2 border rounded-md" /></div>
+                <div><label className="block text-gray-700 mb-2">Sex</label><select name="sex" value={profile.sex || ''} onChange={handleChange} className="w-full px-4 py-2 border rounded-md"><option value="">Select...</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option></select></div>
+                <div><label className="block text-gray-700 mb-2">City, Country</label><input type="text" name="city" value={profile.city || ''} onChange={handleChange} className="w-full px-4 py-2 border rounded-md" /></div>
+                <div><label className="block text-gray-700 mb-2">Current Employer</label><input type="text" name="currentEmployer" value={profile.currentEmployer || ''} onChange={handleChange} className="w-full px-4 py-2 border rounded-md" /></div>
+                <div><label className="block text-gray-700 mb-2">Current Job Title</label><input type="text" name="currentJobTitle" value={profile.currentJobTitle || ''} onChange={handleChange} className="w-full px-4 py-2 border rounded-md" /></div>
+                <div><label className="block text-gray-700 mb-2">Years of Full-Time Employment</label><input type="number" name="yearsOfEmployment" value={profile.yearsOfEmployment || ''} onChange={handleChange} className="w-full px-4 py-2 border rounded-md" /></div>
+=======
             <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6 border-b pb-6 mb-6">
                 <div><label className="block text-gray-700 mb-2">Full Name</label><input type="text" name="name" value={profile.name || ''} onChange={handleChange} className="w-full px-4 py-2 border rounded-md" required /></div>
                 <div><label className="block text-gray-700 mb-2">Sex</label><select name="sex" value={profile.sex || ''} onChange={handleChange} className="w-full px-4 py-2 border rounded-md" required><option value="">Select...</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option></select></div>
@@ -217,20 +346,42 @@ export default function ProfileScreen({ user, setUser, setView, db, appId }) {
                 <div><label className="block text-gray-700 mb-2">Current Employer</label><input type="text" name="currentEmployer" value={profile.currentEmployer || ''} onChange={handleChange} className="w-full px-4 py-2 border rounded-md" required /></div>
                 <div><label className="block text-gray-700 mb-2">Current Job Title</label><input type="text" name="currentJobTitle" value={profile.currentJobTitle || ''} onChange={handleChange} className="w-full px-4 py-2 border rounded-md" required /></div>
                 <div><label className="block text-gray-700 mb-2">Years of Full-Time Employment</label><input type="number" name="yearsOfEmployment" value={profile.yearsOfEmployment || ''} onChange={handleChange} className="w-full px-4 py-2 border rounded-md" required /></div>
+>>>>>>> dev
                 
                 <div className="md:col-span-2">
                     <label className="block text-gray-700 mb-2">My LinkedIn Profile or Resume</label>
                     <input type="url" name="linkedin" value={profile.linkedin || ''} onChange={handleChange} className="w-full px-4 py-2 border rounded-md mb-2" placeholder="https://www.linkedin.com/in/your-profile" />
-                    <div className="flex items-center space-x-4">
+
+                <div className="flex items-center space-x-4">
                         <input type="file" onChange={handleFileChange} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+<<<<<<< HEAD
+                        
+                        {resumeFile && (
+                            <button type="button" onClick={handleExtractFromResume} disabled={isExtracting} className="bg-purple-500 text-white px-4 py-2 rounded-md hover:bg-purple-600 disabled:bg-purple-300">
+                                {isExtracting ? 'Extracting...' : 'Extract Jobs'}
+                            </button>
+                        )}
+
+                        {resumeFile && (
+                            <button type="button" onClick={handleExtractEducation} disabled={isExtracting} className="bg-indigo-500 text-white px-4 py-2 rounded-md hover:bg-indigo-600 disabled:bg-indigo-300">
+                                {isExtracting ? 'Extracting...' : 'Extract Education'}
+                            </button>
+                        )}
+                    </div> 
+
+                 {uploadProgress > 0 && <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2"><div className="bg-blue-600 h-2.5 rounded-full" style={{width: `${uploadProgress}%`}}></div></div>}
+=======
                         {resumeFile && <button type="button" onClick={handleExtractFromResume} disabled={isExtracting} className="bg-purple-500 text-white px-4 py-2 rounded-md hover:bg-purple-600 disabled:bg-purple-300">{isExtracting ? 'Extracting...' : 'Extract Jobs'}</button>}
                         {resumeFile && <button type="button" onClick={handleExtractEducation} disabled={isExtracting} className="bg-indigo-500 text-white px-4 py-2 rounded-md hover:bg-indigo-600 disabled:bg-indigo-300">{isExtracting ? 'Extracting...' : 'Extract Education'}</button>}
                     </div>
                     {uploadProgress > 0 && <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2"><div className="bg-blue-600 h-2.5 rounded-full" style={{width: `${uploadProgress}%`}}></div></div>}
+>>>>>>> dev
                     {profile.resumeUrl && !resumeFile && <p className="text-sm text-gray-600 mt-2">Current Resume: <a href={profile.resumeUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">View Uploaded File</a></p>}
                 </div>
 
-                <div className="md:col-span-2"><button type="submit" className="w-full bg-green-500 text-white py-2 rounded-md hover:bg-green-600 transition-colors">Save Profile Details</button></div>
+                <div className="md:col-span-2">
+                    <button type="button" onClick={handleSubmit} className="w-full bg-green-500 text-white py-2 rounded-md hover:bg-green-600 transition-colors">Save Profile Details</button>
+                </div>
             </form>
             
              <div className="mb-8">
