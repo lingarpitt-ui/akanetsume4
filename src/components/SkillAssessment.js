@@ -192,8 +192,10 @@ export default function SkillAssessment({ profile, user, onBack, db, appId }) {
         }
         // --- END OF PATCH ---
 
-        const validateSkillWithAIV2 = firebase.functions().httpsCallable('validateSkillWithAI');
-        const result = await validateSkillWithAIV2({ skill });
+
+        const validateSkillWithAI = firebase.functions().httpsCallable('validateSkillWithAIV2');
+        const result = await validateSkillWithAI({ skill });
+
         const text = result.data.trim();
         handleSkillChange(skillIndex, 'supportLevel', text);
 
@@ -230,8 +232,11 @@ export default function SkillAssessment({ profile, user, onBack, db, appId }) {
         }
 
         try {
-            const generateSummaryWithAIV2 = firebase.functions().httpsCallable('generateSummaryWithAI');
-            const result = await generateSummaryWithAIV2({ allProofPoints });
+
+
+            const generateSummaryWithAI = firebase.functions().httpsCallable('generateSummaryWithAIV2');
+            const result = await generateSummaryWithAI({ allProofPoints });
+
             const text = result.data.trim();
             setSummary(text);
         } catch(err) {

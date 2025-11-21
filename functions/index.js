@@ -13,14 +13,17 @@ const callGemini = async (prompt, fileData = null, mimeType = null, safetySettin
         scopes: 'https://www.googleapis.com/auth/cloud-platform'
     });
 
-    const PROJECT_ID = "bkanetsume4"; // <-- PRODUCTION ID
+
+    const PROJECT_ID = "akanetsume-dev"; // <-- PRODUCTION ID (Fixed)
+
     const LOCATION = "us-central1"; 
     const model = "gemini-2.5-flash"; // Current stable model
     const API_URL = `https://us-central1-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/${model}:generateContent`;
 
     const parts = [{ text: prompt }];
     if (fileData && mimeType) {
-        // Ensure multimodal structure is correct
+
+
         parts.unshift({ inlineData: { data: fileData, mimeType: mimeType } });
     }
 
@@ -54,9 +57,10 @@ const callGemini = async (prompt, fileData = null, mimeType = null, safetySettin
     return response.json();
 };
 
-// --- REST OF V2 FUNCTIONS ---
 
-exports.extractResumeDataV2 = onCall({ region: "us-central1", timeoutSeconds: 120, memory: "1GiB" }, async (request) => {
+// --- 1. EXTRACT RESUME DATA (JOBS) ---
+exports.extractResumeDataV2 = onCall({ region: "us-central1", cors: true, timeoutSeconds: 120, memory: "1GiB" }, async (request) => {
+
     const { fileData, mimeType } = request.data;
     if (!fileData || !mimeType) throw new HttpsError('invalid-argument', 'Missing fileData/mimeType.');
     
@@ -95,7 +99,10 @@ exports.extractResumeDataV2 = onCall({ region: "us-central1", timeoutSeconds: 12
     } catch (error) { throw new HttpsError('internal', error.message); }
 });
 
-exports.extractEducationDataV2 = onCall({ region: "us-central1", timeoutSeconds: 120, memory: "1GiB" }, async (request) => {
+
+// --- 2. EXTRACT EDUCATION ---
+exports.extractEducationDataV2 = onCall({ region: "us-central1", cors: true, timeoutSeconds: 120, memory: "1GiB" }, async (request) => {
+
     const { fileData, mimeType } = request.data;
     if (!fileData || !mimeType) throw new HttpsError('invalid-argument', 'Missing fileData/mimeType.');
     
@@ -127,7 +134,10 @@ exports.extractEducationDataV2 = onCall({ region: "us-central1", timeoutSeconds:
     } catch (error) { throw new HttpsError('internal', error.message); }
 });
 
-exports.generateSkillsV2 = onCall({ region: "us-central1" }, async (request) => {
+
+// --- 3. GENERATE SKILLS ---
+exports.generateSkillsV2 = onCall({ region: "us-central1", cors: true }, async (request) => {
+
     const { jobTitle } = request.data;
     if (!jobTitle) throw new HttpsError('invalid-argument', 'Missing jobTitle.');
     
@@ -138,7 +148,10 @@ exports.generateSkillsV2 = onCall({ region: "us-central1" }, async (request) => 
     } catch (error) { throw new HttpsError('internal', error.message); }
 });
 
-exports.validateSkillWithAIV2 = onCall({ region: "us-central1" }, async (request) => {
+
+// --- 4. VALIDATE SKILL ---
+exports.validateSkillWithAIV2 = onCall({ region: "us-central1", cors: true }, async (request) => {
+
     const { skill } = request.data;
     if (!skill) throw new HttpsError('invalid-argument', 'Missing skill.');
 
@@ -153,7 +166,10 @@ exports.validateSkillWithAIV2 = onCall({ region: "us-central1" }, async (request
     } catch (error) { throw new HttpsError('internal', error.message); }
 });
 
-exports.generateSummaryWithAIV2 = onCall({ region: "us-central1" }, async (request) => {
+
+// --- 5. GENERATE SUMMARY ---
+exports.generateSummaryWithAIV2 = onCall({ region: "us-central1", cors: true }, async (request) => {
+
     const { allProofPoints } = request.data;
     if (typeof allProofPoints !== 'string') throw new HttpsError('invalid-argument', 'Missing proof points.');
     
