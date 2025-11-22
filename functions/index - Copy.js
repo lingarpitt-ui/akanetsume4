@@ -1,3 +1,4 @@
+// --- ALL V2 IMPORTS (Required for Gen 2) ---
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { initializeApp } = require("firebase-admin/app");
 const { GoogleAuth } = require('google-auth-library');
@@ -5,28 +6,31 @@ const fetch = require("node-fetch");
 
 initializeApp();
 
-// --- HELPER FUNCTION ---
+// --- HELPER FUNCTION (Uses GoogleAuth and Vertex AI) ---
 const callGemini = async (prompt, fileData = null, mimeType = null, safetySettings = [], responseType = "text/plain") => {
     
     const auth = new GoogleAuth({
         scopes: 'https://www.googleapis.com/auth/cloud-platform'
     });
 
-    // --- PRODUCTION CONFIGURATION ---
-    const PROJECT_ID = "bkanetsume4";  // <--- VERIFY THIS IS YOUR PROD ID
+
+    const PROJECT_ID = "bkanetsume4"; // <-- PRODUCTION ID (Fixed)
+
     const LOCATION = "us-central1"; 
-    const model = "gemini-2.5-flash"; 
+    const model = "gemini-2.5-flash"; // Current stable model
     const API_URL = `https://us-central1-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/${model}:generateContent`;
 
     const parts = [{ text: prompt }];
     if (fileData && mimeType) {
-        parts.push({ inlineData: { data: fileData, mimeType: mimeType } });
+
+
+        parts.unshift({ inlineData: { data: fileData, mimeType: mimeType } });
     }
 
     const payload = { 
         contents: [{ role: "user", parts: parts }],
         generationConfig: {
-            "maxOutputTokens": 8192, // Increased for long resumes
+            "maxOutputTokens": 8192,
             "temperature": 0.4,
             "topP": 1,
             "topK": 32,
@@ -40,10 +44,7 @@ const callGemini = async (prompt, fileData = null, mimeType = null, safetySettin
 
     const response = await fetch(API_URL, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
         body: JSON.stringify(payload),
     });
     
@@ -56,20 +57,17 @@ const callGemini = async (prompt, fileData = null, mimeType = null, safetySettin
     return response.json();
 };
 
+
 // --- 1. EXTRACT RESUME DATA (JOBS) ---
-exports.extractResumeDataV2 = onCall({ region: "us-central1", timeoutSeconds: 120, memory: "1GiB" }, async (request) => {
+exports.extractResumeDataV2 = onCall({ region: "us-central1", cors: true, timeoutSeconds: 120, memory: "1GiB" }, async (request) => {
+
     const { fileData, mimeType } = request.data;
-    if (!fileData || !mimeType) {
-        throw new HttpsError('invalid-argument', 'The function must be called with "fileData" and "mimeType".');
-    }
+    if (!fileData || !mimeType) throw new HttpsError('invalid-argument', 'Missing fileData/mimeType.');
     
     const prompt = `
         You are a data extraction engine. Analyze the resume and extract employment history.
         Return ONLY a JSON array of objects.
-        Required JSON Structure:
-        [
-          { "company": "String", "jobTitle": "String", "startDate": "String", "endDate": "String", "city": "String", "description": "String (summary of duties)" }
-        ]
+        Required JSON Structure: [ { "company": "String", "jobTitle": "String", "startDate": "String", "endDate": "String", "city": "String", "description": "String (summary of duties)" } ]
         - If end date is "Present", use "Present".
         - DO NOT output markdown code blocks.
         - Output strictly valid JSON.
@@ -88,40 +86,29 @@ exports.extractResumeDataV2 = onCall({ region: "us-central1", timeoutSeconds: 12
         let cleanText = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
 
         const firstBracket = cleanText.indexOf('[');
-        if (firstBracket === -1) {
-            throw new Error("The AI response did not contain a valid JSON array.");
-        }
+        if (firstBracket === -1) throw new Error("The AI response did not contain a valid JSON array.");
 
         let lastBracket = cleanText.lastIndexOf(']');
         if (lastBracket === -1 || lastBracket < firstBracket) {
              const lastCurly = cleanText.lastIndexOf('}');
-             if (lastCurly > firstBracket) {
-                cleanText = cleanText.substring(0, lastCurly + 1) + "]";
-                lastBracket = cleanText.length - 1;
-            } else {
-                throw new Error("JSON cut off too early to repair.");
-            }
+             if (lastCurly > firstBracket) { cleanText = cleanText.substring(0, lastCurly + 1) + "]"; lastBracket = cleanText.length - 1; } 
+             else { throw new Error("JSON cut off too early to repair."); }
         }
 
         return cleanText.substring(firstBracket, lastBracket + 1);
-
-    } catch (error) {
-        console.error("Error in extractResumeData:", error);
-        throw new HttpsError('internal', error.message);
-    }
+    } catch (error) { throw new HttpsError('internal', error.message); }
 });
 
-// --- 2. EXTRACT EDUCATION (THE MISSING FUNCTION) ---
-exports.extractEducationDataV2 = onCall({ region: "us-central1", timeoutSeconds: 120, memory: "1GiB" }, async (request) => {
+
+// --- 2. EXTRACT EDUCATION ---
+exports.extractEducationDataV2 = onCall({ region: "us-central1", cors: true, timeoutSeconds: 120, memory: "1GiB" }, async (request) => {
+
     const { fileData, mimeType } = request.data;
-    if (!fileData || !mimeType) {
-        throw new HttpsError('invalid-argument', 'The function must be called with "fileData" and "mimeType".');
-    }
+    if (!fileData || !mimeType) throw new HttpsError('invalid-argument', 'Missing fileData/mimeType.');
     
     const prompt = `
         Analyze the provided resume document and extract the Education, Degrees, Diplomas, and Certifications.
-        Return the data as a valid JSON array of objects. 
-        Keys: "name", "institute", "location", "year".
+        Return the data as a valid JSON array of objects. Keys: "name", "institute", "location", "year".
         IMPORTANT: Your response MUST be only the raw JSON array.
     `;
 
@@ -140,20 +127,17 @@ exports.extractEducationDataV2 = onCall({ region: "us-central1", timeoutSeconds:
         const firstBracket = cleanText.indexOf('[');
         const lastBracket = cleanText.lastIndexOf(']');
         
-        if (firstBracket === -1 || lastBracket === -1) {
-            throw new Error("Could not find valid JSON array in AI response.");
-        }
+        if (firstBracket === -1 || lastBracket === -1) throw new Error("Could not find valid JSON array in AI response.");
 
         return cleanText.substring(firstBracket, lastBracket + 1);
 
-    } catch (error) {
-        console.error("Error in extractEducationData:", error);
-        throw new HttpsError('internal', error.message);
-    }
+    } catch (error) { throw new HttpsError('internal', error.message); }
 });
 
+
 // --- 3. GENERATE SKILLS ---
-exports.generateSkillsV2 = onCall({ region: "us-central1" }, async (request) => {
+exports.generateSkillsV2 = onCall({ region: "us-central1", cors: true }, async (request) => {
+
     const { jobTitle } = request.data;
     if (!jobTitle) throw new HttpsError('invalid-argument', 'Missing jobTitle.');
     
@@ -161,13 +145,13 @@ exports.generateSkillsV2 = onCall({ region: "us-central1" }, async (request) => 
     try {
         const result = await callGemini(prompt, null, null, [], "application/json");
         return result.candidates[0].content.parts[0].text;
-    } catch (error) {
-        throw new HttpsError('internal', error.message);
-    }
+    } catch (error) { throw new HttpsError('internal', error.message); }
 });
 
+
 // --- 4. VALIDATE SKILL ---
-exports.validateSkillWithAIV2 = onCall({ region: "us-central1" }, async (request) => {
+exports.validateSkillWithAIV2 = onCall({ region: "us-central1", cors: true }, async (request) => {
+
     const { skill } = request.data;
     if (!skill) throw new HttpsError('invalid-argument', 'Missing skill.');
 
@@ -179,13 +163,13 @@ exports.validateSkillWithAIV2 = onCall({ region: "us-central1" }, async (request
     try {
         const result = await callGemini(prompt, null, null, [], "text/plain");
         return result.candidates[0].content.parts[0].text;
-    } catch (error) {
-        throw new HttpsError('internal', error.message);
-    }
+    } catch (error) { throw new HttpsError('internal', error.message); }
 });
 
+
 // --- 5. GENERATE SUMMARY ---
-exports.generateSummaryWithAIV2 = onCall({ region: "us-central1" }, async (request) => {
+exports.generateSummaryWithAIV2 = onCall({ region: "us-central1", cors: true }, async (request) => {
+
     const { allProofPoints } = request.data;
     if (typeof allProofPoints !== 'string') throw new HttpsError('invalid-argument', 'Missing proof points.');
     
@@ -193,7 +177,5 @@ exports.generateSummaryWithAIV2 = onCall({ region: "us-central1" }, async (reque
     try {
         const result = await callGemini(prompt, null, null, [], "text/plain");
         return result.candidates[0].content.parts[0].text;
-    } catch (error) {
-        throw new HttpsError('internal', error.message);
-    }
+    } catch (error) { throw new HttpsError('internal', error.message); }
 });

@@ -14,7 +14,7 @@ const callGemini = async (prompt, fileData = null, mimeType = null, safetySettin
     });
 
 
-    const PROJECT_ID = "akanetsume-dev"; // <-- PRODUCTION ID (Fixed)
+    const PROJECT_ID = "bkanetsume4"; // <-- PRODUCTION ID (Fixed)
 
     const LOCATION = "us-central1"; 
     const model = "gemini-2.5-flash"; // Current stable model
